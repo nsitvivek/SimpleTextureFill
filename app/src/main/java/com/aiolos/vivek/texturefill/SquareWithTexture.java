@@ -1,19 +1,13 @@
 package com.aiolos.vivek.texturefill;
 
-import android.graphics.Bitmap;
-import android.graphics.BitmapFactory;
 import android.opengl.GLES20;
-import android.opengl.GLUtils;
 
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.FloatBuffer;
 import java.nio.ShortBuffer;
 
-import static android.opengl.GLES10.GL_TEXTURE_WRAP_S;
-import static android.opengl.GLES10.GL_TEXTURE_WRAP_T;
 import static android.opengl.GLES20.GL_TEXTURE_2D;
-import static android.opengl.GLES20.glTexParameterf;
 
 public class SquareWithTexture {
 
@@ -38,15 +32,14 @@ public class SquareWithTexture {
     private final ShortBuffer drawListBuffer;
     private final int mProgram;
     private int mPositionHandle;
-    private int mColorHandle;
     private int mMVPMatrixHandle;
     static final int COORDS_PER_VERTEX = 3;
     static float squareCoords[] = {
 
-            -1.0f,  1.0f, 0.0f,   // top left
-            1.0f, 1.0f, 0.0f,  // top right
-            1.0f, -1.0f, 0.0f,   // bottom right
-            -1.0f, -1.0f, 0.0f   // bottom left
+            -0.5f,  0.5f, 0.0f,   // top left
+            0.5f, 0.5f, 0.0f,  // top right
+            0.5f, -0.5f, 0.0f,   // bottom right
+            -0.5f, -0.5f, 0.0f   // bottom left
     };
 
     private final int vertexStride = COORDS_PER_VERTEX * 4; // 4 bytes per vertex
@@ -58,50 +51,24 @@ public class SquareWithTexture {
                     1.0f,1.0f, // Bottom-right
                     0.0f,1.0f,  // Bottom-left
             };
-    private int textureDataHandle;
     private int textureUniformHandle;
     private int textureCoordinateHandle;
     private final OpenGLES20Activity openGLES20Activity;
 
     private final short drawOrder[] = { 0, 1, 2, 0, 2, 3 };
     float color[] = { 0.2f, 0.709803922f, 0.898039216f, 1.0f };
-    private int loadTexture(final int resourceId){    final int[] textureHandle = new int[1];
+    private final int textureDataHandle;
 
-        GLES20.glGenTextures(1, textureHandle, 0);
+    public SquareWithTexture(OpenGLES20Activity openGLES20Activity, int textureDataHandle,
+                             int i, int numFrames) {
+        float x1 = (i - numFrames/2) - 0.25f;
+        float x2 = (i - numFrames/2) + 0.25f;
+        squareCoords[0] = x1;
+        squareCoords[3] = x2;
+        squareCoords[6] = x2;
+        squareCoords[9] = x1;
 
-        if (textureHandle[0] != 0)
-        {
-            final BitmapFactory.Options options = new BitmapFactory.Options();
-            options.inScaled = false;   // No pre-scaling
-
-            // Read in the resource
-            final Bitmap bitmap = BitmapFactory.decodeResource(openGLES20Activity.getResources(), resourceId, options);
-
-            // Bind to the texture in OpenGL
-            GLES20.glBindTexture(GL_TEXTURE_2D, textureHandle[0]);
-
-            glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GLES20.GL_REPEAT);
-            glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GLES20.GL_REPEAT);
-
-            // Set filtering
-            GLES20.glTexParameteri(GL_TEXTURE_2D, GLES20.GL_TEXTURE_MIN_FILTER, GLES20.GL_LINEAR);
-            GLES20.glTexParameteri(GL_TEXTURE_2D, GLES20.GL_TEXTURE_MAG_FILTER, GLES20.GL_LINEAR);
-
-            // Load the bitmap into the bound texture.
-            GLUtils.texImage2D(GL_TEXTURE_2D, 0, bitmap, 0);
-
-            // Recycle the bitmap, since its data has been loaded into OpenGL.
-            bitmap.recycle();
-        }
-
-        if (textureHandle[0] == 0)
-        {
-            throw new RuntimeException("Error loading texture.");
-        }
-
-        return textureHandle[0];}
-
-    public SquareWithTexture(OpenGLES20Activity openGLES20Activity) {
+        this.textureDataHandle = textureDataHandle;
         this.openGLES20Activity = openGLES20Activity;
         // initialize vertex byte buffer for shape coordinates
         ByteBuffer bb = ByteBuffer.allocateDirect(
@@ -127,7 +94,6 @@ public class SquareWithTexture {
         textureBuffer.put(previewTextureCoordinateData);
         textureBuffer.position(0);
 
-
         // prepare shaders and OpenGL program
         int vertexShader = MyGLRenderer.loadShader(
                 GLES20.GL_VERTEX_SHADER,
@@ -135,8 +101,6 @@ public class SquareWithTexture {
         int fragmentShader = MyGLRenderer.loadShader(
                 GLES20.GL_FRAGMENT_SHADER,
                 fragmentShaderCode);
-
-        textureDataHandle = loadTexture(R.drawable.puppy);
 
         mProgram = GLES20.glCreateProgram();             // create empty OpenGL Program
         GLES20.glAttachShader(mProgram, vertexShader);   // add the vertex shader to program

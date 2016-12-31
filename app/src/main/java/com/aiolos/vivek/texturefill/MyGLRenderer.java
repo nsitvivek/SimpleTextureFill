@@ -15,13 +15,24 @@
  */
 package com.aiolos.vivek.texturefill;
 
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
 import android.opengl.GLES20;
 import android.opengl.GLSurfaceView;
+import android.opengl.GLUtils;
 import android.opengl.Matrix;
 import android.util.Log;
 
+import java.util.ArrayList;
+import java.util.List;
+
 import javax.microedition.khronos.egl.EGLConfig;
 import javax.microedition.khronos.opengles.GL10;
+
+import static android.opengl.GLES10.GL_TEXTURE_WRAP_S;
+import static android.opengl.GLES10.GL_TEXTURE_WRAP_T;
+import static android.opengl.GLES20.GL_TEXTURE_2D;
+import static android.opengl.GLES20.glTexParameterf;
 
 /**
  * Provides drawing instructions for a GLSurfaceView object. This class
@@ -35,7 +46,8 @@ import javax.microedition.khronos.opengles.GL10;
 public class MyGLRenderer implements GLSurfaceView.Renderer {
 
     private static final String TAG = "MyGLRenderer";
-    private SquareWithTexture   mSquare;
+    private static final int numFrames = 3;
+    private List<SquareWithTexture> mSquare;
     OpenGLES20Activity openGLES20Activity;
 
     // mMVPMatrix is an abbreviation for "Model View Projection Matrix"
@@ -43,15 +55,58 @@ public class MyGLRenderer implements GLSurfaceView.Renderer {
     private final float[] mProjectionMatrix = new float[16];
     private final float[] mViewMatrix = new float[16];
 
+    private int[] mTextureDataHandle;
+
     public MyGLRenderer(OpenGLES20Activity openGLES20Activity) {
         this.openGLES20Activity = openGLES20Activity;
+        mTextureDataHandle = new int[numFrames];
     }
 
     @Override
     public void onSurfaceCreated(GL10 unused, EGLConfig config) {
         // Set the background frame color
         GLES20.glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
-        mSquare = new SquareWithTexture(openGLES20Activity);
+        mSquare = new ArrayList<>();
+        for (int i = 0; i < numFrames; i++) {
+            loadTexture(R.drawable.puppy, i);
+        }
+
+        for (int i = 0; i < numFrames; i++) {
+            SquareWithTexture sq = new SquareWithTexture(openGLES20Activity, mTextureDataHandle[i], i, numFrames);
+            mSquare.add(sq);
+        }
+    }
+
+    private void loadTexture(final int resourceId, int index) {
+
+        GLES20.glGenTextures(1, mTextureDataHandle, index);
+
+        final BitmapFactory.Options options = new BitmapFactory.Options();
+        options.inScaled = false;   // No pre-scaling
+
+        // Read in the resource
+        final Bitmap bitmap = BitmapFactory.decodeResource(openGLES20Activity.getResources(), resourceId, options);
+
+        // Bind to the texture in OpenGL
+        GLES20.glBindTexture(GL_TEXTURE_2D, mTextureDataHandle[index]);
+
+        glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GLES20.GL_REPEAT);
+        glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GLES20.GL_REPEAT);
+
+        // Set filtering
+        GLES20.glTexParameteri(GL_TEXTURE_2D, GLES20.GL_TEXTURE_MIN_FILTER, GLES20.GL_LINEAR);
+        GLES20.glTexParameteri(GL_TEXTURE_2D, GLES20.GL_TEXTURE_MAG_FILTER, GLES20.GL_LINEAR);
+
+        // Load the bitmap into the bound texture.
+        GLUtils.texImage2D(GL_TEXTURE_2D, 0, bitmap, 0);
+
+        // Recycle the bitmap, since its data has been loaded into OpenGL.
+        bitmap.recycle();
+
+
+        if (mTextureDataHandle[index] == 0) {
+            throw new RuntimeException("Error loading texture.");
+        }
     }
 
     @Override
@@ -66,7 +121,9 @@ public class MyGLRenderer implements GLSurfaceView.Renderer {
         Matrix.multiplyMM(mMVPMatrix, 0, mProjectionMatrix, 0, mViewMatrix, 0);
 
         // Draw square
-        mSquare.draw(mMVPMatrix);
+        for (int i = 0; i < numFrames; i++) {
+            mSquare.get(i).draw(mMVPMatrix);
+        }
     }
 
     @Override
